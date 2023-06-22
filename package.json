@@ -1,7 +1,7 @@
 {
   "name": "textlint-rule-ja-allowed-kanji",
   "description": "textlint rule that allows only specified kanji characters for Japanese.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": {
     "name": "matori"
   },
@@ -10,6 +10,14 @@
     "textlintrule",
     "kanji"
   ],
+  "homepage": "https://github.com/matori/textlint-rule-ja-allowed-kanji#readme",
+  "bugs": {
+    "url": "https://github.com/matori/textlint-rule-ja-allowed-kanji/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/matori/textlint-rule-ja-allowed-kanji.git"
+  },
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
   "files": [
