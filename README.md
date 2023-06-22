@@ -145,7 +145,7 @@ textlint --rule ja-allowed-kanji README.md
 4:3   error  「炒」は "/炒(?=め)/" 以外のパターンでは許可されていない漢字です。  ja-allowed-kanji
 ```
 
-### Build
+## Build
 
 Builds source codes for publish to the `lib` folder.
 
@@ -153,7 +153,7 @@ Builds source codes for publish to the `lib` folder.
 npm run build
 ```
 
-### Tests
+## Tests
 
 Run test code in `test` folder.
 Test textlint rule by [textlint-tester](https://github.com/textlint/textlint-tester).
