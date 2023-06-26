@@ -207,21 +207,21 @@ describe("getAllowedKanjiList", () => {
 
   it("allowの文字列にある漢字が追加されること", () => {
     const userExclude = "";
-    const useAllow = "可気苦毛子";
+    const userAllow = "可気苦毛子";
 
     const expected = ["亜", "異", "宇", "絵", "王", "可", "気", "苦", "毛", "子"];
 
-    const result = getAllowedKanjiList(preset, userExclude, useAllow);
+    const result = getAllowedKanjiList(preset, userExclude, userAllow);
     assert.deepStrictEqual(result, expected);
   });
 
   it("allowの配列にある漢字が追加されること", () => {
     const userExclude = [] as string[];
-    const useAllow = ["可気", "苦毛", "子"];
+    const userAllow = ["可気", "苦毛", "子"];
 
     const expected = ["亜", "異", "宇", "絵", "王", "可", "気", "苦", "毛", "子"];
 
-    const result = getAllowedKanjiList(preset, userExclude, useAllow);
+    const result = getAllowedKanjiList(preset, userExclude, userAllow);
     assert.deepStrictEqual(result, expected);
   });
 
