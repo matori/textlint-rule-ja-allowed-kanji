@@ -13,6 +13,15 @@ describe("convertTextToKanjiArray", () => {
   });
 
   it("文字列の配列を漢字の配列に変換すること", () => {
+    const texts = ["今日", "は", "良い", "天気", "ですね"];
+
+    const expected = ["今", "日", "良", "天", "気"] as KanjiList;
+
+    const result = convertTextToKanjiArray(texts);
+    assert.deepStrictEqual(result, expected);
+  });
+
+  it("重複した漢字が取り除かれること", () => {
     const texts = ["今日", "明日", "明後日"];
 
     const expected = ["今", "日", "明", "後"] as KanjiList;
