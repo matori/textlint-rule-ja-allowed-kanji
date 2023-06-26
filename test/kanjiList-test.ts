@@ -185,7 +185,7 @@ describe("getAllowedKanjiList", () => {
     assert.deepStrictEqual(result, preset);
   });
 
-  it("disallowの文字列にある漢字が除外されること", () => {
+  it("excludeの文字列にある漢字が除外されること", () => {
     const userExclude = "異王";
     const userAllow = "";
 
@@ -195,7 +195,7 @@ describe("getAllowedKanjiList", () => {
     assert.deepStrictEqual(result, expected);
   });
 
-  it("disallowの配列にある漢字が除外されること", () => {
+  it("excludeの配列にある漢字が除外されること", () => {
     const userExclude = ["異王", "絵"];
     const userAllow = [] as string[];
 
@@ -235,7 +235,7 @@ describe("getAllowedKanjiList", () => {
     assert.deepStrictEqual(result, expected);
   });
 
-  it("disallowとallowで漢字が重複する場合、allowが優先されること", () => {
+  it("excludeとallowで漢字が重複する場合、allowが優先されること", () => {
     const userExclude = "亜異王";
     const userAllow = ["異能", "亜"];
 
