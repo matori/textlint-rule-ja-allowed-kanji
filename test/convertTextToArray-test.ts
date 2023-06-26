@@ -6,7 +6,7 @@ describe("convertTextToKanjiArray", () => {
   it("文字列を漢字の配列に変換すること", () => {
     const text = "今日は良い天気ですね";
 
-    const expected = ["今", "日", "良", "天", "気"] as KanjiList as KanjiList;
+    const expected = ["今", "日", "良", "天", "気"] as KanjiList;
 
     const result = convertTextToKanjiArray(text);
     assert.deepStrictEqual(result, expected);
