@@ -11,6 +11,7 @@ npm run build         # src/ を lib/ にビルド（tsc）
 npm test              # テスト（mocha + tsx）
 npm run format        # 整形（prettier）
 npm run format:check  # 整形のチェック（CI で実行）
+npm run generate:data # Unihan から漢字データを生成（ネット接続が必要。-- --zip <path> でダウンロード済みの Unihan.zip を使う）
 ```
 
 - Node.js 22 以上が必要です。
@@ -26,6 +27,7 @@ npm run format:check  # 整形のチェック（CI で実行）
 | `src/utils/convertTextToKanjiArray.ts` | オプションの文字列から漢字を取り出す |
 | `src/utils/grapheme.ts` | テキストを書記素単位に分割して漢字を取り出す、異体字セレクタを取り除く |
 | `src/data/kanjiDataList.ts` | 漢字データ。各漢字が常用漢字・人名用漢字・JIS 水準のどれに含まれるかのフラグを持つ |
+| `scripts/generate-kanji-data.ts` | Unicode の Unihan データベースから漢字データを生成するスクリプト。使用する Unicode のバージョンはスクリプト内で固定している |
 | `test/rule-test.ts` | ルール全体のテスト（textlint-tester） |
 | `test/*-test.ts` | `src/utils/` の各関数の単体テスト |
 | `lib/` | ビルド結果（git 管理外） |
