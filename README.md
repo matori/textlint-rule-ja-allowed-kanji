@@ -54,6 +54,9 @@ textlint --rule ja-allowed-kanji README.md
      *
      * すべて`false`にすると「々」「〇」のみ許可されるプリセットが作成されます。
      *
+     * キーの大文字・小文字は区別しません（`Regular`や`JIS1`も有効です）。
+     * 以下のキー以外を指定するとエラーになります。
+     *
      * - regular: 常用漢字
      * - forename: 人名用漢字
      * - jis1: JIS第1水準（JIS X0213）

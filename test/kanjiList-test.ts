@@ -65,6 +65,48 @@ describe("createPresetTargets", () => {
     const result = createPresetTargets(presetTargets);
     assert.deepStrictEqual(result, expected);
   });
+
+  it("キーの大文字・小文字を区別しないこと", () => {
+    const presetTargets = {
+      Regular: true,
+      FORENAME: true,
+      Jis1: true,
+      JIS2: true,
+    };
+
+    const expected = [REQUIRED, REGULAR, FORENAME, JIS1, JIS2] as KanjiKey[];
+
+    const result = createPresetTargets(presetTargets);
+    assert.deepStrictEqual(result, expected);
+  });
+
+  it("大文字・小文字だけが違う同じキーが複数あっても、重複しないこと", () => {
+    const presetTargets = {
+      regular: true,
+      Regular: true,
+    };
+
+    const expected = [REQUIRED, REGULAR] as KanjiKey[];
+
+    const result = createPresetTargets(presetTargets);
+    assert.deepStrictEqual(result, expected);
+  });
+
+  it("未知のキーが指定された場合、エラーを投げること", () => {
+    for (const key of ["jis3", "rqd", "reg", "foo", "constructor"]) {
+      assert.throws(
+        () => createPresetTargets({ [key]: true }),
+        {
+          message: `presetオプションに未知のキー "${key}" が指定されています。有効なキー: regular, forename, jis1, jis2`,
+        },
+        key,
+      );
+    }
+  });
+
+  it("未知のキーの値がfalseでも、エラーを投げること", () => {
+    assert.throws(() => createPresetTargets({ regular: true, foo: false }), /未知のキー "foo"/);
+  });
 });
 
 describe("createKanjiPreset", () => {
