@@ -10,6 +10,8 @@ import {
   JIS2,
 } from "./utils/kanjiList";
 import { getAllowedKanjiPatterns } from "./utils/kanjiPattern";
+import { convertTextToKanjiArray } from "./utils/convertTextToKanjiArray";
+import { removeVariationSelectors, segmentKanji } from "./utils/grapheme";
 import type { TextlintRuleModule } from "@textlint/types";
 
 /**
@@ -48,6 +50,28 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
   // 許可する漢字の配列を作成
   const kanjiPreset = createKanjiPreset(presetTargets, kanjiDataList);
   const allowedKanji = getAllowedKanjiList(kanjiPreset, options.exclude ?? [], options.allowKanji ?? []);
+  // 除外する漢字（異体字セレクタ付きの字を個別に除外する判定で使う）
+  const excludedKanji = convertTextToKanjiArray(options.exclude ?? []);
+
+  /**
+   * 漢字が許可されているかを判定する
+   *
+   * - 許可する漢字の配列にそのままあれば許可する
+   * - 異体字セレクタ付きの字は、その字自体が除外されていなければ、元の字が許可されているかで判定する
+   *
+   * @param {string} char 書記素単位の漢字
+   * @returns {boolean}
+   */
+  const isAllowedKanji = (char: string): boolean => {
+    if (allowedKanji.includes(char)) {
+      return true;
+    }
+    const baseChar = removeVariationSelectors(char);
+    if (baseChar === char || excludedKanji.includes(char)) {
+      return false;
+    }
+    return allowedKanji.includes(baseChar);
+  };
 
   // 許可する漢字パターンを作成
   const allowedKanjiPattern = getAllowedKanjiPatterns(options.allowPatterns ?? [], allowedKanji);
@@ -55,22 +79,18 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
   return {
     [Syntax.Str](node) {
       const text = getSource(node);
-      // テキスト内の漢字
-      const matches = text.matchAll(/\p{Script=Han}/gu);
+      // テキスト内の漢字（書記素単位）
+      const kanjiSegments = segmentKanji(text);
 
       // 漢字ごとの許可パターンのマッチ結果
       // 同じ漢字が何度出てきても、テキスト全体に対する照合は1回で済むようにキャッシュする
       const patternMatchesCache = new Map<string, matchPatternResult[]>();
 
-      for (const match of matches) {
-        const char = match[0];
-
-        if (allowedKanji.includes(char)) {
+      for (const { char, index } of kanjiSegments) {
+        if (isAllowedKanji(char)) {
           // 許可されている漢字はパターンチェックも必要ないのでスキップして次へ
           continue;
         }
-
-        const index = match.index ?? 0;
 
         // 許可する漢字の配列になかったらとりあえずエラーメッセージを作っておく
         // パターンチェックでOKの場合はcontinueするので使われない
