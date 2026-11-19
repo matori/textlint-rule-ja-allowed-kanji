@@ -3,6 +3,12 @@ import rule from "../src";
 
 const tester = new TextLintTester();
 
+// 葛 + IVS（U+E0100、U+E0101）
+const KATSU_0 = "葛\u{E0100}";
+const KATSU_1 = "葛\u{E0101}";
+// 海 + SVS（U+FE00）
+const UMI_SVS = "海\uFE00";
+
 tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
   valid: [
     {
@@ -93,6 +99,34 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       text: "同じ漢字を繰り返す許可パターン：呶呶する。",
       options: {
         allowPatterns: ["呶呶"],
+      },
+    },
+    {
+      text: `異体字（元の字がプリセットで許可）：${KATSU_0}飾区`,
+      options: {},
+    },
+    {
+      text: `異体字（SVS、元の字がプリセットで許可）：${UMI_SVS}`,
+      options: {},
+    },
+    {
+      text: `異体字（異体字だけを許可）：${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+        allowKanji: KATSU_0,
+      },
+    },
+    {
+      text: `異体字（特定の異体字だけを除外）：葛飾区と${KATSU_0}飾区`,
+      options: {
+        exclude: KATSU_1,
+      },
+    },
+    {
+      text: `異体字（許可パターン）：${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+        allowPatterns: [`${KATSU_0}飾`],
       },
     },
     {
@@ -263,6 +297,109 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
             end: {
               line: 2,
               column: 2,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `元の字を除外すると異体字もエラー：
+${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+      },
+      errors: [
+        {
+          message: `「${KATSU_0}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `異体字だけを許可した場合の元の字と別の異体字のエラー：
+葛飾区と${KATSU_1}飾区`,
+      options: {
+        exclude: "葛",
+        allowKanji: KATSU_0,
+      },
+      errors: [
+        {
+          message: `「葛」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+        {
+          message: `「${KATSU_1}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 5,
+            },
+            end: {
+              line: 2,
+              column: 8,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `特定の異体字だけを除外した場合のエラー：
+${KATSU_1}飾区`,
+      options: {
+        exclude: KATSU_1,
+      },
+      errors: [
+        {
+          message: `「${KATSU_1}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `異体字の許可パターンのエラー：
+${KATSU_0}城`,
+      options: {
+        exclude: "葛",
+        allowPatterns: [`${KATSU_0}飾`],
+      },
+      errors: [
+        {
+          message: `「${KATSU_0}」は "${KATSU_0}飾" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
             },
           },
         },
