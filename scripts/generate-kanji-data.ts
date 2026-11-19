@@ -1,15 +1,24 @@
 /**
- * 漢字データ（src/data/kanjiDataList.ts）を Unicode の Unihan データベースから生成する
+ * 漢字データを Unicode Character Database から生成する
+ *
+ * - src/data/kanjiDataList.ts: Unihan データベースから生成する漢字データ
+ * - src/data/compatibilityVariants.ts: StandardizedVariants.txt から生成する、SVS と CJK 互換漢字の対応表
  *
  * 使い方:
- *   npm run generate:data                       # Unihan.zip をダウンロードして生成する
- *   npm run generate:data -- --zip ./Unihan.zip # ダウンロード済みの Unihan.zip から生成する
+ *   npm run generate:data
+ *     Unihan.zip と StandardizedVariants.txt をダウンロードして生成する
+ *   npm run generate:data -- --zip ./Unihan.zip --svs ./StandardizedVariants.txt
+ *     ダウンロード済みのファイルから生成する
  *
  * 使用する Unihan のフィールド（Unihan_OtherMappings.txt）:
  *   - kJoyoKanji:     常用漢字。本表の字は "2010"、許容字体は本表の字のコードポイント
  *   - kJinmeiyoKanji: 人名用漢字（戸籍法施行規則 別表第二）
  *   - kJis0:          JIS X 0208 の区点。16〜47区が第1水準、48〜84区が第2水準
  *   - kJIS0213:       JIS X 0213 で追加された字の面区点。1面が第3水準、2面が第4水準
+ *
+ * 使用する StandardizedVariants.txt の行:
+ *   - 「<元の字> <異体字セレクタ>; CJK COMPATIBILITY IDEOGRAPH-<互換漢字>;」の行
+ *     互換漢字と同じ字形を表す SVS の定義
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -17,9 +26,13 @@ import { strFromU8, unzipSync } from "fflate";
 
 /** 使用する Unicode のバージョン。更新するときはここを変える */
 const UNICODE_VERSION = "18.0.0";
-const UNIHAN_URL = `https://www.unicode.org/Public/${UNICODE_VERSION}/ucd/Unihan.zip`;
+const UCD_URL = `https://www.unicode.org/Public/${UNICODE_VERSION}/ucd`;
+const UNIHAN_URL = `${UCD_URL}/Unihan.zip`;
 const UNIHAN_FILE = "Unihan_OtherMappings.txt";
-const OUTPUT_PATH = join(__dirname, "../src/data/kanjiDataList.ts");
+const SVS_URL = `${UCD_URL}/StandardizedVariants.txt`;
+const SVS_FILE = "StandardizedVariants.txt";
+const KANJI_DATA_PATH = join(__dirname, "../src/data/kanjiDataList.ts");
+const COMPATIBILITY_VARIANTS_PATH = join(__dirname, "../src/data/compatibilityVariants.ts");
 
 /** どの漢字セットにも含まれないが、常に許可する文字 */
 const REQUIRED_CHARS = ["々", "〇"];
@@ -43,19 +56,23 @@ interface KanjiData {
 
 const TARGET_FIELDS = new Set<string>(["kJoyoKanji", "kJinmeiyoKanji", "kJis0", "kJIS0213"]);
 
-async function loadUnihanText(zipPath: string | undefined): Promise<string> {
-  let zip: Uint8Array;
-  if (zipPath) {
-    zip = readFileSync(zipPath);
-  } else {
-    console.log(`ダウンロード中: ${UNIHAN_URL}`);
-    const response = await fetch(UNIHAN_URL);
-    if (!response.ok) {
-      throw new Error(`Unihan.zip をダウンロードできませんでした: ${response.status} ${response.statusText}`);
-    }
-    zip = new Uint8Array(await response.arrayBuffer());
+/**
+ * ファイルを読み込む。パスが指定されていなければダウンロードする
+ */
+async function loadFile(path: string | undefined, url: string): Promise<Uint8Array> {
+  if (path) {
+    return readFileSync(path);
   }
+  console.log(`ダウンロード中: ${url}`);
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`${url} をダウンロードできませんでした: ${response.status} ${response.statusText}`);
+  }
+  return new Uint8Array(await response.arrayBuffer());
+}
 
+async function loadUnihanText(zipPath: string | undefined): Promise<string> {
+  const zip = await loadFile(zipPath, UNIHAN_URL);
   const files = unzipSync(zip, { filter: (file) => file.name === UNIHAN_FILE });
   const file = files[UNIHAN_FILE];
   if (!file) {
@@ -68,6 +85,38 @@ async function loadUnihanText(zipPath: string | undefined): Promise<string> {
     throw new Error(`${UNIHAN_FILE} が Unicode ${UNICODE_VERSION} のものではありません`);
   }
   return text;
+}
+
+async function loadStandardizedVariantsText(path: string | undefined): Promise<string> {
+  const text = strFromU8(await loadFile(path, SVS_URL));
+
+  // 指定したバージョンのファイルかを確認する
+  if (!text.includes(`# ${SVS_FILE.replace(".txt", "")}-${UNICODE_VERSION}.txt`)) {
+    throw new Error(`${SVS_FILE} が Unicode ${UNICODE_VERSION} のものではありません`);
+  }
+  return text;
+}
+
+/**
+ * SVS と CJK 互換漢字の対応を取り出す
+ *
+ * @returns [SVS, 互換漢字] の配列
+ */
+function parseCompatibilityVariants(text: string): [string, string][] {
+  const result: [string, string][] = [];
+  const pattern = /^([0-9A-F]+) ([0-9A-F]+);\s*CJK COMPATIBILITY IDEOGRAPH-([0-9A-F]+);/;
+
+  for (const line of text.split("\n")) {
+    const match = line.match(pattern);
+    if (!match) {
+      continue;
+    }
+    const [, base, selector, compat] = match;
+    const svs = String.fromCodePoint(parseInt(base, 16), parseInt(selector, 16));
+    result.push([svs, String.fromCodePoint(parseInt(compat, 16))]);
+  }
+
+  return result;
 }
 
 function parseUnihan(text: string): Map<string, UnihanEntry> {
@@ -146,6 +195,37 @@ function createKanjiDataList(unihan: Map<string, UnihanEntry>): KanjiData[] {
   return result.sort((a, b) => sortKey(a.char, unihan.get(a.char)) - sortKey(b.char, unihan.get(b.char)));
 }
 
+/** 見た目で区別できない文字を、コードポイントのエスケープで書く */
+function escapeString(text: string): string {
+  const escaped = [...text]
+    .map((char) => {
+      const code = char.codePointAt(0) ?? 0;
+      return code > 0xffff
+        ? `\\u{${code.toString(16).toUpperCase()}}`
+        : `\\u${code.toString(16).toUpperCase().padStart(4, "0")}`;
+    })
+    .join("");
+  return `"${escaped}"`;
+}
+
+function toCompatibilityVariantsSource(variants: [string, string][]): string {
+  const lines = variants.map(([svs, compat]) => `  [${escapeString(svs)}, ${escapeString(compat)}], // ${compat}`);
+
+  return `/**
+ * SVS（標準化された異体字シーケンス）と CJK 互換漢字の対応表
+ *
+ * このファイルは scripts/generate-kanji-data.ts で生成しています。手で編集しないでください。
+ * 出典: Unicode Character Database ${UNICODE_VERSION}（${SVS_FILE}）
+ *
+ * 互換漢字と、それと同じ字形を表す SVS を同じ字として扱うために使う。
+ * 各要素は [SVS, 互換漢字]。
+ */
+export const compatibilityVariants: ReadonlyArray<readonly [string, string]> = [
+${lines.join("\n")}
+];
+`;
+}
+
 function toSource(list: KanjiData[]): string {
   const keys = ["reg", "name", "jis1", "jis2", "jis3", "rqd"] as const;
   const lines = list.map((data) => {
@@ -188,18 +268,24 @@ ${lines.join("\n")}
 }
 
 async function main() {
-  const zipIndex = process.argv.indexOf("--zip");
-  const zipPath = zipIndex > -1 ? process.argv[zipIndex + 1] : undefined;
+  const getOption = (name: string): string | undefined => {
+    const index = process.argv.indexOf(name);
+    return index > -1 ? process.argv[index + 1] : undefined;
+  };
 
-  const unihan = parseUnihan(await loadUnihanText(zipPath));
+  const unihan = parseUnihan(await loadUnihanText(getOption("--zip")));
   const list = createKanjiDataList(unihan);
-  writeFileSync(OUTPUT_PATH, toSource(list));
+  writeFileSync(KANJI_DATA_PATH, toSource(list));
+
+  const variants = parseCompatibilityVariants(await loadStandardizedVariantsText(getOption("--svs")));
+  writeFileSync(COMPATIBILITY_VARIANTS_PATH, toCompatibilityVariantsSource(variants));
 
   const count = (key: keyof KanjiData) => list.filter((data) => data[key]).length;
-  console.log(`生成しました: ${OUTPUT_PATH}`);
+  console.log(`生成しました: ${KANJI_DATA_PATH}`);
   console.log(
     `全${list.length}字（常用 ${count("reg")}、人名用 ${count("name")}、第1水準 ${count("jis1")}、第2水準 ${count("jis2")}、第3水準 ${count("jis3")}）`,
   );
+  console.log(`生成しました: ${COMPATIBILITY_VARIANTS_PATH}（${variants.length}件）`);
 }
 
 main().catch((error) => {

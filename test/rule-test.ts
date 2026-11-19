@@ -6,8 +6,9 @@ const tester = new TextLintTester();
 // 葛 + IVS（U+E0100、U+E0101）
 const KATSU_0 = "葛\u{E0100}";
 const KATSU_1 = "葛\u{E0101}";
-// 海 + SVS（U+FE00）
-const UMI_SVS = "海\uFE00";
+// 互換漢字の神（U+FA19）と、同じ字形を表す SVS（神 + U+FE00）
+const KAMI_COMPAT = "\uFA19";
+const KAMI_SVS = "\u795E\uFE00";
 
 tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
   valid: [
@@ -119,8 +120,24 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       options: {},
     },
     {
-      text: `異体字（SVS、元の字がプリセットで許可）：${UMI_SVS}`,
-      options: {},
+      text: `互換漢字とSVS（人名用漢字）：${KAMI_COMPAT}と${KAMI_SVS}`,
+      options: {
+        preset: {
+          forename: true,
+        },
+      },
+    },
+    {
+      text: `互換漢字を許可するとSVSも許可：${KAMI_SVS}`,
+      options: {
+        allowKanji: KAMI_COMPAT,
+      },
+    },
+    {
+      text: `SVSを許可すると互換漢字も許可：${KAMI_COMPAT}`,
+      options: {
+        allowKanji: KAMI_SVS,
+      },
     },
     {
       text: `異体字（異体字だけを許可）：${KATSU_0}飾区`,
@@ -150,6 +167,63 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
     },
   ],
   invalid: [
+    {
+      text: `互換漢字とSVSは元の字に戻さない：
+${KAMI_COMPAT}${KAMI_SVS}`,
+      errors: [
+        {
+          message: `「${KAMI_COMPAT}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+        {
+          message: `「${KAMI_SVS}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 2,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `互換漢字を除外するとSVSも除外：
+${KAMI_SVS}`,
+      options: {
+        preset: {
+          forename: true,
+        },
+        exclude: KAMI_COMPAT,
+      },
+      errors: [
+        {
+          message: `「${KAMI_SVS}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 3,
+            },
+          },
+        },
+      ],
+    },
     {
       text: `常用漢字表の括弧内の旧字体：
 學校`,

@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import { kanjiDataList } from "../src/data/kanjiDataList";
+import { compatibilityVariants } from "../src/data/compatibilityVariants";
 import type { KanjiData } from "../src/data/kanjiDataList";
 
 const find = (char: string): KanjiData | undefined => kanjiDataList.find((data) => data.char === char);
@@ -59,5 +60,22 @@ describe("kanjiDataList", () => {
         assert.strictEqual(find(char)?.name, undefined, char);
       }
     });
+  });
+});
+
+describe("compatibilityVariants", () => {
+  it("SVSと互換漢字の対応が出典どおりであること", () => {
+    assert.strictEqual(compatibilityVariants.length, 1002);
+
+    const map = new Map(compatibilityVariants);
+    assert.strictEqual(map.size, compatibilityVariants.length);
+    assert.strictEqual(map.get("神︀"), "神");
+    assert.strictEqual(map.get("海︀"), "海");
+  });
+
+  it("互換漢字が元の字とNFC正規化で対応していること", () => {
+    for (const [svs, compat] of compatibilityVariants) {
+      assert.strictEqual(compat.normalize("NFC"), [...svs][0], compat);
+    }
   });
 });
