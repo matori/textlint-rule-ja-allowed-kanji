@@ -267,10 +267,7 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       options: {
         exclude: "濫",
         allowKanji: "諜",
-        allowPatterns: [
-          "氾濫",
-          "/炒(?=め)/"
-        ]
+        allowPatterns: ["氾濫", "/炒(?=め)/"],
       },
       errors: [
         {

@@ -6503,5 +6503,5 @@ export const kanjiDataList: KanjiDataList = new Array<KanjiData>(
   { char: "鷗", name: 1, jis3: 1 },
   { char: "麵", name: 1, jis3: 1, reg: 1 },
   { char: "黃", name: 1, jis3: 1, reg: 1 },
-  { char: "黑", name: 1, jis3: 1, reg: 1 }
+  { char: "黑", name: 1, jis3: 1, reg: 1 },
 );
