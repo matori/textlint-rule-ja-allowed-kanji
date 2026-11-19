@@ -90,6 +90,12 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       },
     },
     {
+      text: "同じ漢字を繰り返す許可パターン：呶呶する。",
+      options: {
+        allowPatterns: ["呶呶"],
+      },
+    },
+    {
       text: "許可パターン（正規表現文字列）：今日のおかずは野菜炒めです。",
       options: {
         allowPatterns: ["/炒(?=め)/"],
@@ -213,6 +219,50 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
             end: {
               line: 2,
               column: 5,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `同じ漢字を繰り返す許可パターンのエラー：
+呶呶呶`,
+      options: {
+        allowPatterns: ["呶呶"],
+      },
+      errors: [
+        {
+          message: `「呶」は "呶呶" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 3,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `後読みの許可パターンのエラー：
+呶呶`,
+      options: {
+        allowPatterns: ["/(?<=呶)呶/"],
+      },
+      errors: [
+        {
+          message: `「呶」は "/(?<=呶)呶/" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
             },
           },
         },
