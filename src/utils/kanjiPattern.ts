@@ -23,12 +23,13 @@ export type KanjiPatternList = KanjiPattern[];
  */
 export function getAllowedKanjiPatterns(userDefined: OptionPattern, allowedKanji: KanjiList): KanjiPatternList {
   const result = [] as KanjiPatternList;
+  const allowedKanjiSet = new Set(allowedKanji);
 
   for (const pattern of userDefined) {
     const kanjiList = convertTextToKanjiArray(pattern);
 
     for (const char of kanjiList) {
-      if (allowedKanji.includes(char)) {
+      if (allowedKanjiSet.has(char)) {
         // 許可された漢字のパターンを追加する必要はないのでスキップして次へ
         continue;
       }
