@@ -49,18 +49,19 @@ textlint --rule ja-allowed-kanji README.md
      * どの漢字セットを使用するかのオプションです。
      * オプションが指定されていない場合は常用漢字のみになります。
      *
-     * 人名用漢字は常用漢字を含むので、
+     * 子の名には常用漢字も使えるので、`forename`を`true`にすると常用漢字も許可されます。
      * 常用漢字と人名用漢字を許可する場合は`forename`を`true`にするだけでOKです。
      *
      * すべて`false`にすると「々」「〇」のみ許可されるプリセットが作成されます。
      *
      * キーの大文字・小文字は区別しません（`Regular`や`JIS1`も有効です）。
      * 以下のキー以外を指定するとエラーになります。
+     * 各漢字セットの範囲は「漢字セットの範囲」を参照してください。
      *
      * - regular: 常用漢字
-     * - forename: 人名用漢字
-     * - jis1: JIS第1水準（JIS X0213）
-     * - jis2: JIS第2水準（JIS X0213）
+     * - forename: 人名用漢字（常用漢字を含む）
+     * - jis1: JIS第1水準
+     * - jis2: JIS第2水準
      */
     preset? : {
         regular? : boolean;
@@ -94,6 +95,19 @@ textlint --rule ja-allowed-kanji README.md
     allowPatterns? : string[];
 }
 ```
+
+### 漢字セットの範囲
+
+漢字セットのデータは、[Unicode の Unihan データベース](https://www.unicode.org/reports/tr38/)（Unicode 18.0.0）から生成しています。
+
+| プリセット | 範囲 | Unihan のフィールド |
+|---|---|---|
+| `regular` | 常用漢字表の本表の2,136字と、許容字体4字（「剥」「填」「頬」「叱」）。表の括弧内に添えられた旧字体（「學」など）は含みません | `kJoyoKanji` |
+| `forename` | 戸籍法施行規則 別表第二の人名用漢字。常用漢字も許可されます | `kJinmeiyoKanji` |
+| `jis1` | JIS X 0208 の第1水準 | `kJis0`（16〜47区） |
+| `jis2` | JIS X 0208 の第2水準 | `kJis0`（48〜84区） |
+
+旧字体を使いたい場合は、`forename`や`jis2`のプリセットを使うか、`allowKanji`オプションで許可してください。
 
 ### ※ 踊り字、漢数字のゼロ、二の字点、同上記号
 
