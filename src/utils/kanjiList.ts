@@ -28,6 +28,7 @@ const PRESET_KEY_MAP = new Map<string, KanjiKey>([
  *
  * - キーの大文字・小文字は区別しない
  * - 未知のキーが含まれている場合はエラーを投げる
+ * - 人名用漢字（forename）を指定した場合は、常用漢字も含める
  *
  * @param {OptionPreset} presetTargets presetオプション
  * @returns {KanjiKey[]} 漢字データのキーの配列
@@ -49,9 +50,16 @@ export function createPresetTargets(presetTargets: OptionPreset): KanjiKey[] {
       throw new Error(`presetオプションに未知のキー "${key}" が指定されています。有効なキー: ${validKeys}`);
     }
 
-    if (value) {
-      result.add(kanjiKey);
+    if (!value) {
+      continue;
     }
+
+    // 子の名には常用漢字も使えるので、人名用漢字を指定した場合は常用漢字も含める
+    // 漢字データの人名用漢字（name）は戸籍法施行規則 別表第二の字だけで、常用漢字を含まない
+    if (kanjiKey === FORENAME) {
+      result.add(REGULAR);
+    }
+    result.add(kanjiKey);
   }
 
   return [...result];

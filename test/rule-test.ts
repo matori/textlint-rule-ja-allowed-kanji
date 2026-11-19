@@ -32,6 +32,19 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       },
     },
     {
+      text: "常用漢字（本表の字体と許容字体）：シールを剝がす。シールを剥がす。",
+      options: {},
+    },
+    {
+      text: "人名用漢字（常用漢字も含む）：亞希子さんは今年、丑年です。",
+      options: {
+        preset: {
+          regular: false,
+          forename: true,
+        },
+      },
+    },
+    {
       text: "JIS1漢字：この旅行で宍道湖を訪れました。",
       options: {
         preset: {
@@ -137,6 +150,49 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
     },
   ],
   invalid: [
+    {
+      text: `常用漢字表の括弧内の旧字体：
+學校`,
+      errors: [
+        {
+          message: `「學」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `名前に使えない旧字体：
+學`,
+      options: {
+        preset: {
+          forename: true,
+        },
+      },
+      errors: [
+        {
+          message: `「學」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+      ],
+    },
     {
       text: `エラー漢字：
 

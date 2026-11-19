@@ -104,6 +104,13 @@ describe("createPresetTargets", () => {
     }
   });
 
+  it("人名用漢字を指定した場合、常用漢字も含まれること", () => {
+    const expected = [REQUIRED, REGULAR, FORENAME] as KanjiKey[];
+
+    assert.deepStrictEqual(createPresetTargets({ [FORENAME_OPTION_KEY]: true }), expected);
+    assert.deepStrictEqual(createPresetTargets({ [REGULAR_OPTION_KEY]: false, [FORENAME_OPTION_KEY]: true }), expected);
+  });
+
   it("未知のキーの値がfalseでも、エラーを投げること", () => {
     assert.throws(() => createPresetTargets({ regular: true, foo: false }), /未知のキー "foo"/);
   });
@@ -112,11 +119,11 @@ describe("createPresetTargets", () => {
 describe("createKanjiPreset", () => {
   const kanjiDataList = [
     { char: "々", rqd: 1 },
-    { char: "亜", reg: 1, name: 1, jis1: 1 },
+    { char: "亜", reg: 1, jis1: 1 },
     { char: "宍", jis1: 1 },
     { char: "弌", jis2: 1 },
-    { char: "丼", reg: 1, name: 1, jis2: 1 },
-    { char: "逸", reg: 1, name: 1, jis3: 1 },
+    { char: "丼", reg: 1, jis2: 1 },
+    { char: "逸", reg: 1, jis3: 1 },
     { char: "俠", name: 1, jis3: 1 },
   ] as KanjiDataList;
 
