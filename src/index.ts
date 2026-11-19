@@ -90,7 +90,7 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
       // 同じ漢字が何度出てきても、テキスト全体に対する照合は1回で済むようにキャッシュする
       const patternMatchesCache = new Map<string, matchPatternResult[]>();
 
-      for (const { char, index } of kanjiSegments) {
+      for (const { char, segment, index } of kanjiSegments) {
         if (isAllowedKanji(char)) {
           // 許可されている漢字はパターンチェックも必要ないのでスキップして次へ
           continue;
@@ -98,7 +98,7 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
 
         // 許可する漢字の配列になかったらとりあえずエラーメッセージを作っておく
         // パターンチェックでOKの場合はcontinueするので使われない
-        let message = `「${char}」は許可されていない漢字です。`;
+        let message = `「${segment}」は許可されていない漢字です。`;
 
         // 許可する漢字パターンにあるかチェック
         const patterns = allowedKanjiPatternMap.get(char);
@@ -113,7 +113,7 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
           }
 
           // マッチした範囲が対象の漢字の位置を含んでいれば許可する
-          const charEndIndex = index + char.length;
+          const charEndIndex = index + segment.length;
           const isAllowed = patternMatches.some(
             ({ startIndex, endIndex }) => startIndex <= index && charEndIndex <= endIndex,
           );
@@ -124,10 +124,10 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
 
           // 「該当漢字を対象とした許可パターン自体は存在しているが、パターンにマッチしなかった」
           // という意味なので次のようなメッセージになる
-          message = `「${char}」は "${patterns.join(`" "`)}" 以外のパターンでは許可されていない漢字です。`;
+          message = `「${segment}」は "${patterns.join(`" "`)}" 以外のパターンでは許可されていない漢字です。`;
         }
         // エラーレポート
-        const padding = locator.range([index, index + char.length]);
+        const padding = locator.range([index, index + segment.length]);
         const ruleError = new RuleError(message, { padding });
         report(node, ruleError);
       }
