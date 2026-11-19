@@ -50,8 +50,10 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
   // 許可する漢字の配列を作成
   const kanjiPreset = createKanjiPreset(presetTargets, kanjiDataList);
   const allowedKanji = getAllowedKanjiList(kanjiPreset, options.exclude ?? [], options.allowKanji ?? []);
+  // 本文の漢字1文字ごとに検索するので、Setにしておく
+  const allowedKanjiSet = new Set(allowedKanji);
   // 除外する漢字（異体字セレクタ付きの字を個別に除外する判定で使う）
-  const excludedKanji = convertTextToKanjiArray(options.exclude ?? []);
+  const excludedKanjiSet = new Set(convertTextToKanjiArray(options.exclude ?? []));
 
   /**
    * 漢字が許可されているかを判定する
@@ -63,18 +65,20 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
    * @returns {boolean}
    */
   const isAllowedKanji = (char: string): boolean => {
-    if (allowedKanji.includes(char)) {
+    if (allowedKanjiSet.has(char)) {
       return true;
     }
     const baseChar = removeVariationSelectors(char);
-    if (baseChar === char || excludedKanji.includes(char)) {
+    if (baseChar === char || excludedKanjiSet.has(char)) {
       return false;
     }
-    return allowedKanji.includes(baseChar);
+    return allowedKanjiSet.has(baseChar);
   };
 
   // 許可する漢字パターンを作成
   const allowedKanjiPattern = getAllowedKanjiPatterns(options.allowPatterns ?? [], allowedKanji);
+  // 漢字から許可パターンを引けるようにしておく
+  const allowedKanjiPatternMap = new Map(allowedKanjiPattern.map(({ kanji, patterns }) => [kanji, patterns]));
 
   return {
     [Syntax.Str](node) {
@@ -97,10 +101,9 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
         let message = `「${char}」は許可されていない漢字です。`;
 
         // 許可する漢字パターンにあるかチェック
-        const allowedPattern = allowedKanjiPattern.find(({ kanji }) => kanji === char);
+        const patterns = allowedKanjiPatternMap.get(char);
 
-        if (allowedPattern) {
-          const { patterns } = allowedPattern;
+        if (patterns) {
           let patternMatches = patternMatchesCache.get(char);
           if (!patternMatches) {
             // テキスト全体に対して照合する

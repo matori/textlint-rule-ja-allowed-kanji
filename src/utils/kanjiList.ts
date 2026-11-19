@@ -91,11 +91,11 @@ export function getAllowedKanjiList(preset: KanjiList, userExclude: OptionKanji,
   if (!userExclude.length && !userAllow.length) {
     return preset;
   }
-  const disallow = convertTextToKanjiArray(userExclude);
+  const disallow = new Set(convertTextToKanjiArray(userExclude));
   const allow = convertTextToKanjiArray(userAllow);
 
   // allow優先なので、最初にdisallowを除外してからallowを追加する
-  const filtered = preset.filter((char) => !disallow.includes(char));
+  const filtered = preset.filter((char) => !disallow.has(char));
 
   // 重複除去
   const result = new Set([...filtered, ...allow]);
