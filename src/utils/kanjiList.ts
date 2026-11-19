@@ -13,31 +13,48 @@ export const REQUIRED = "rqd";
 export type KanjiKey = typeof REGULAR | typeof FORENAME | typeof JIS1 | typeof JIS2 | typeof REQUIRED;
 export type KanjiList = string[];
 
+/**
+ * presetオプションのキー（小文字）と漢字データのキーの対応
+ */
+const PRESET_KEY_MAP = new Map<string, KanjiKey>([
+  [REGULAR_OPTION_KEY, REGULAR],
+  [FORENAME_OPTION_KEY, FORENAME],
+  [JIS1, JIS1],
+  [JIS2, JIS2],
+]);
+
+/**
+ * presetオプションから、プリセット作成の対象となる漢字データのキーを作成する
+ *
+ * - キーの大文字・小文字は区別しない
+ * - 未知のキーが含まれている場合はエラーを投げる
+ *
+ * @param {OptionPreset} presetTargets presetオプション
+ * @returns {KanjiKey[]} 漢字データのキーの配列
+ */
 export function createPresetTargets(presetTargets: OptionPreset): KanjiKey[] {
-  const targets = Object.entries(presetTargets) as [keyof OptionPreset, boolean][];
-  const result: KanjiKey[] = [REQUIRED];
+  const targets = Object.entries(presetTargets) as [string, boolean | undefined][];
+  const result = new Set<KanjiKey>([REQUIRED]);
 
   if (!targets.length) {
-    result.push(REGULAR);
-  } else {
-    for (const [key, value] of targets) {
-      if (!value) {
-        continue;
-      }
-      switch (key) {
-        case REGULAR_OPTION_KEY:
-          result.push(REGULAR);
-          break;
-        case FORENAME_OPTION_KEY:
-          result.push(FORENAME);
-          break;
-        default:
-          result.push(key as KanjiKey);
-      }
+    result.add(REGULAR);
+    return [...result];
+  }
+
+  for (const [key, value] of targets) {
+    const kanjiKey = PRESET_KEY_MAP.get(key.toLowerCase());
+
+    if (!kanjiKey) {
+      const validKeys = [...PRESET_KEY_MAP.keys()].join(", ");
+      throw new Error(`presetオプションに未知のキー "${key}" が指定されています。有効なキー: ${validKeys}`);
+    }
+
+    if (value) {
+      result.add(kanjiKey);
     }
   }
 
-  return result;
+  return [...result];
 }
 
 /**

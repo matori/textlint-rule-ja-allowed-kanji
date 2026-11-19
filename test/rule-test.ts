@@ -43,6 +43,15 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       },
     },
     {
+      text: "プリセットのキーの大文字・小文字：「弌」という字は「一」の古字です。",
+      options: {
+        preset: {
+          JIS1: true,
+          Jis2: true,
+        },
+      },
+    },
+    {
       text: "許可（文字列）：その野菜炒めは罠です。",
       options: {
         allowKanji: "炒罠",
