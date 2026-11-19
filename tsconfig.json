@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
-    "module": "CommonJS",
+    "module": "Node16",
+    "rootDir": "./src/",
     "outDir": "./lib/",
     "moduleResolution": "Node16",
     "esModuleInterop": true,

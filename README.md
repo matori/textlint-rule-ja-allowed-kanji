@@ -17,7 +17,7 @@ Refs：
 
 Install with [npm](https://www.npmjs.com/):
 
-Required: Node.js >= 16.0
+Required: Node.js >= 22
 
 ```sh
 npm install textlint-rule-ja-allowed-kanji
