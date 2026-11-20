@@ -8,6 +8,7 @@ Refs：
 - [文化庁 | 国語施策・日本語教育 | 国語施策情報 | 内閣告示・内閣訓令 | 常用漢字表（平成22年内閣告示第2号）](https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/kanji/)
 - [法務省：子の名に使える漢字](https://www.moj.go.jp/MINJI/minji86.html)
 - [日本産業標準調査会：データベース-JIS規格詳細画面 JIS X0213](https://www.jisc.go.jp/app/jis/general/GnrJISNumberNameSearchList?toGnrJISStandardDetailList)
+- [UAX #38: Unicode Han Database (Unihan)](https://www.unicode.org/reports/tr38/)
 
 漢字として判定される文字については以下のリンクを参照してください。
 
@@ -139,7 +140,7 @@ textlint --rule ja-allowed-kanji README.md
 - 互換漢字と SVS は、元の字に戻して判定しません。たとえば常用漢字のプリセットでは、「神」（U+FA19）も「神」+ U+FE00 もエラーになります。
 - 互換漢字は、エディタなどで Unicode の正規化（NFC）がかかると元の字に置き換わります。このルールは本文を正規化せず、書かれている文字のまま判定します。
 
-### 許可する漢字を完全にコントールしたい場合
+### 許可する漢字を完全にコントロールしたい場合
 
 - プリセットオプション内をすべて`false`にする
 - `exclude`オプションで`"々〇"`を指定する
@@ -189,6 +190,15 @@ Builds source codes for publish to the `lib` folder.
 
 ```sh
 npm run build
+```
+
+## Generate kanji data
+
+Generates `src/data/` from the Unicode Character Database (Unihan and StandardizedVariants.txt).
+The Unicode version is fixed in `scripts/generate-kanji-data.ts`.
+
+```sh
+npm run generate:data
 ```
 
 ## Tests
