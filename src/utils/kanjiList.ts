@@ -13,31 +13,56 @@ export const REQUIRED = "rqd";
 export type KanjiKey = typeof REGULAR | typeof FORENAME | typeof JIS1 | typeof JIS2 | typeof REQUIRED;
 export type KanjiList = string[];
 
+/**
+ * presetオプションのキー（小文字）と漢字データのキーの対応
+ */
+const PRESET_KEY_MAP = new Map<string, KanjiKey>([
+  [REGULAR_OPTION_KEY, REGULAR],
+  [FORENAME_OPTION_KEY, FORENAME],
+  [JIS1, JIS1],
+  [JIS2, JIS2],
+]);
+
+/**
+ * presetオプションから、プリセット作成の対象となる漢字データのキーを作成する
+ *
+ * - キーの大文字・小文字は区別しない
+ * - 未知のキーが含まれている場合はエラーを投げる
+ * - 人名用漢字（forename）を指定した場合は、常用漢字も含める
+ *
+ * @param {OptionPreset} presetTargets presetオプション
+ * @returns {KanjiKey[]} 漢字データのキーの配列
+ */
 export function createPresetTargets(presetTargets: OptionPreset): KanjiKey[] {
-  const targets = Object.entries(presetTargets) as [keyof OptionPreset, boolean][];
-  const result: KanjiKey[] = [REQUIRED];
+  const targets = Object.entries(presetTargets) as [string, boolean | undefined][];
+  const result = new Set<KanjiKey>([REQUIRED]);
 
   if (!targets.length) {
-    result.push(REGULAR);
-  } else {
-    for (const [key, value] of targets) {
-      if (!value) {
-        continue;
-      }
-      switch (key) {
-        case REGULAR_OPTION_KEY:
-          result.push(REGULAR);
-          break;
-        case FORENAME_OPTION_KEY:
-          result.push(FORENAME);
-          break;
-        default:
-          result.push(key as KanjiKey);
-      }
-    }
+    result.add(REGULAR);
+    return [...result];
   }
 
-  return result;
+  for (const [key, value] of targets) {
+    const kanjiKey = PRESET_KEY_MAP.get(key.toLowerCase());
+
+    if (!kanjiKey) {
+      const validKeys = [...PRESET_KEY_MAP.keys()].join(", ");
+      throw new Error(`presetオプションに未知のキー "${key}" が指定されています。有効なキー: ${validKeys}`);
+    }
+
+    if (!value) {
+      continue;
+    }
+
+    // 子の名には常用漢字も使えるので、人名用漢字を指定した場合は常用漢字も含める
+    // 漢字データの人名用漢字（name）は戸籍法施行規則 別表第二の字だけで、常用漢字を含まない
+    if (kanjiKey === FORENAME) {
+      result.add(REGULAR);
+    }
+    result.add(kanjiKey);
+  }
+
+  return [...result];
 }
 
 /**
@@ -74,11 +99,11 @@ export function getAllowedKanjiList(preset: KanjiList, userExclude: OptionKanji,
   if (!userExclude.length && !userAllow.length) {
     return preset;
   }
-  const disallow = convertTextToKanjiArray(userExclude);
+  const disallow = new Set(convertTextToKanjiArray(userExclude));
   const allow = convertTextToKanjiArray(userAllow);
 
   // allow優先なので、最初にdisallowを除外してからallowを追加する
-  const filtered = preset.filter((char) => !disallow.includes(char));
+  const filtered = preset.filter((char) => !disallow.has(char));
 
   // 重複除去
   const result = new Set([...filtered, ...allow]);

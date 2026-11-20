@@ -1,4 +1,5 @@
 import { matchPatterns } from "@textlint/regexp-string-matcher";
+import type { matchPatternResult } from "@textlint/regexp-string-matcher";
 import { kanjiDataList } from "./data/kanjiDataList";
 import {
   createKanjiPreset,
@@ -9,6 +10,8 @@ import {
   JIS2,
 } from "./utils/kanjiList";
 import { getAllowedKanjiPatterns } from "./utils/kanjiPattern";
+import { convertTextToKanjiArray } from "./utils/convertTextToKanjiArray";
+import { removeVariationSelectors, segmentKanji } from "./utils/grapheme";
 import type { TextlintRuleModule } from "@textlint/types";
 
 /**
@@ -47,66 +50,84 @@ const report: TextlintRuleModule<Options> = (context, options = {}) => {
   // 許可する漢字の配列を作成
   const kanjiPreset = createKanjiPreset(presetTargets, kanjiDataList);
   const allowedKanji = getAllowedKanjiList(kanjiPreset, options.exclude ?? [], options.allowKanji ?? []);
+  // 本文の漢字1文字ごとに検索するので、Setにしておく
+  const allowedKanjiSet = new Set(allowedKanji);
+  // 除外する漢字（異体字セレクタ付きの字を個別に除外する判定で使う）
+  const excludedKanjiSet = new Set(convertTextToKanjiArray(options.exclude ?? []));
+
+  /**
+   * 漢字が許可されているかを判定する
+   *
+   * - 許可する漢字の配列にそのままあれば許可する
+   * - 異体字セレクタ付きの字は、その字自体が除外されていなければ、元の字が許可されているかで判定する
+   *
+   * @param {string} char 書記素単位の漢字
+   * @returns {boolean}
+   */
+  const isAllowedKanji = (char: string): boolean => {
+    if (allowedKanjiSet.has(char)) {
+      return true;
+    }
+    const baseChar = removeVariationSelectors(char);
+    if (baseChar === char || excludedKanjiSet.has(char)) {
+      return false;
+    }
+    return allowedKanjiSet.has(baseChar);
+  };
 
   // 許可する漢字パターンを作成
   const allowedKanjiPattern = getAllowedKanjiPatterns(options.allowPatterns ?? [], allowedKanji);
+  // 漢字から許可パターンを引けるようにしておく
+  const allowedKanjiPatternMap = new Map(allowedKanjiPattern.map(({ kanji, patterns }) => [kanji, patterns]));
 
   return {
     [Syntax.Str](node) {
       const text = getSource(node);
-      // テキスト内の漢字
-      const matches = text.matchAll(/\p{Script=Han}/gu);
+      // テキスト内の漢字（書記素単位）
+      const kanjiSegments = segmentKanji(text);
 
-      // 漢字ごとに出現したインデックス+文字の長さを記録して、次の同じ漢字のパターンチェック用文字列作成に使う
-      const nextStartStartIndexes: { [key: string]: number } = {};
+      // 漢字ごとの許可パターンのマッチ結果
+      // 同じ漢字が何度出てきても、テキスト全体に対する照合は1回で済むようにキャッシュする
+      const patternMatchesCache = new Map<string, matchPatternResult[]>();
 
-      for (const match of matches) {
-        const char = match[0];
-
-        if (allowedKanji.includes(char)) {
+      for (const { char, segment, index } of kanjiSegments) {
+        if (isAllowedKanji(char)) {
           // 許可されている漢字はパターンチェックも必要ないのでスキップして次へ
           continue;
         }
 
-        const index = match.index ?? 0;
-
         // 許可する漢字の配列になかったらとりあえずエラーメッセージを作っておく
         // パターンチェックでOKの場合はcontinueするので使われない
-        let message = `「${char}」は許可されていない漢字です。`;
+        let message = `「${segment}」は許可されていない漢字です。`;
 
         // 許可する漢字パターンにあるかチェック
-        // あった場合は処理にインデックスを使うので、findIndexで探す
-        const allowedKanjiPatterCharIndex = allowedKanjiPattern.findIndex(({ kanji }) => kanji === char);
+        const patterns = allowedKanjiPatternMap.get(char);
 
-        if (allowedKanjiPatterCharIndex > -1) {
-          const nextIndex = text.indexOf(char, index + char.length);
-          const searchEndIndex = nextIndex > -1 ? nextIndex : text.length;
-          const searchStartIndex = nextStartStartIndexes[char] ?? 0;
-          // 検索範囲を切り出す
-          // この範囲内でパターンチェックを行う
-          // 例（カギ括弧内が検索範囲）:
-          //   赤白赤白赤から1番目の赤が対象の場合: 「赤白」赤白赤
-          //   赤白赤白赤から2番目の赤が対象の場合: 赤「白赤白」赤
-          //   赤白赤白赤から3番目の赤が対象の場合: 赤白赤「白赤」
-          const searchTarget = text.slice(searchStartIndex, searchEndIndex);
-          const patterns = allowedKanjiPattern[allowedKanjiPatterCharIndex].patterns;
-          const patternMatches = matchPatterns(searchTarget, patterns);
-          // パターンがマッチしてもしなくても次の検索スタート位置を更新
-          nextStartStartIndexes[char] = index + char.length;
+        if (patterns) {
+          let patternMatches = patternMatchesCache.get(char);
+          if (!patternMatches) {
+            // テキスト全体に対して照合する
+            // 照合範囲を切り詰めると、前の文脈を見るパターンや、同じ漢字を繰り返すパターンがマッチしなくなる
+            patternMatches = matchPatterns(text, patterns);
+            patternMatchesCache.set(char, patternMatches);
+          }
 
-          if (!patternMatches.length) {
-            // パターンがマッチしなかった場合はエラーメッセージを更新
-            // マッチしなかったというのは
-            // 「該当漢字を対象とした許可パターン自体は存在しているが、パターンにマッチしなかった」
-            // という意味なので次のようなメッセージになる
-            message = `「${char}」は "${patterns.join(`" "`)}" 以外のパターンでは許可されていない漢字です。`;
-          } else {
-            // マッチした、つまりパターンに該当する場合は問題ないということなのでエラーをレポートせずに次にいく
+          // マッチした範囲が対象の漢字の位置を含んでいれば許可する
+          const charEndIndex = index + segment.length;
+          const isAllowed = patternMatches.some(
+            ({ startIndex, endIndex }) => startIndex <= index && charEndIndex <= endIndex,
+          );
+
+          if (isAllowed) {
             continue;
           }
+
+          // 「該当漢字を対象とした許可パターン自体は存在しているが、パターンにマッチしなかった」
+          // という意味なので次のようなメッセージになる
+          message = `「${segment}」は "${patterns.join(`" "`)}" 以外のパターンでは許可されていない漢字です。`;
         }
         // エラーレポート
-        const padding = locator.range([index, index + char.length]);
+        const padding = locator.range([index, index + segment.length]);
         const ruleError = new RuleError(message, { padding });
         report(node, ruleError);
       }

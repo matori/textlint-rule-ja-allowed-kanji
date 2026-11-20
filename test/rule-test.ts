@@ -3,6 +3,13 @@ import rule from "../src";
 
 const tester = new TextLintTester();
 
+// 葛 + IVS（U+E0100、U+E0101）
+const KATSU_0 = "葛\u{E0100}";
+const KATSU_1 = "葛\u{E0101}";
+// 互換漢字の神（U+FA19）と、同じ字形を表す SVS（神 + U+FE00）
+const KAMI_COMPAT = "\uFA19";
+const KAMI_SVS = "\u795E\uFE00";
+
 tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
   valid: [
     {
@@ -26,6 +33,19 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       },
     },
     {
+      text: "常用漢字（本表の字体と許容字体）：シールを剝がす。シールを剥がす。",
+      options: {},
+    },
+    {
+      text: "人名用漢字（常用漢字も含む）：亞希子さんは今年、丑年です。",
+      options: {
+        preset: {
+          regular: false,
+          forename: true,
+        },
+      },
+    },
+    {
       text: "JIS1漢字：この旅行で宍道湖を訪れました。",
       options: {
         preset: {
@@ -39,6 +59,15 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
         preset: {
           jis1: true,
           jis2: true,
+        },
+      },
+    },
+    {
+      text: "プリセットのキーの大文字・小文字：「弌」という字は「一」の古字です。",
+      options: {
+        preset: {
+          JIS1: true,
+          Jis2: true,
         },
       },
     },
@@ -81,6 +110,56 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       },
     },
     {
+      text: "同じ漢字を繰り返す許可パターン：呶呶する。",
+      options: {
+        allowPatterns: ["呶呶"],
+      },
+    },
+    {
+      text: `異体字（元の字がプリセットで許可）：${KATSU_0}飾区`,
+      options: {},
+    },
+    {
+      text: `互換漢字とSVS（人名用漢字）：${KAMI_COMPAT}と${KAMI_SVS}`,
+      options: {
+        preset: {
+          forename: true,
+        },
+      },
+    },
+    {
+      text: `互換漢字を許可するとSVSも許可：${KAMI_SVS}`,
+      options: {
+        allowKanji: KAMI_COMPAT,
+      },
+    },
+    {
+      text: `SVSを許可すると互換漢字も許可：${KAMI_COMPAT}`,
+      options: {
+        allowKanji: KAMI_SVS,
+      },
+    },
+    {
+      text: `異体字（異体字だけを許可）：${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+        allowKanji: KATSU_0,
+      },
+    },
+    {
+      text: `異体字（特定の異体字だけを除外）：葛飾区と${KATSU_0}飾区`,
+      options: {
+        exclude: KATSU_1,
+      },
+    },
+    {
+      text: `異体字（許可パターン）：${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+        allowPatterns: [`${KATSU_0}飾`],
+      },
+    },
+    {
       text: "許可パターン（正規表現文字列）：今日のおかずは野菜炒めです。",
       options: {
         allowPatterns: ["/炒(?=め)/"],
@@ -88,6 +167,106 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
     },
   ],
   invalid: [
+    {
+      text: `互換漢字とSVSは元の字に戻さない：
+${KAMI_COMPAT}${KAMI_SVS}`,
+      errors: [
+        {
+          message: `「${KAMI_COMPAT}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+        {
+          message: `「${KAMI_SVS}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 2,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `互換漢字を除外するとSVSも除外：
+${KAMI_SVS}`,
+      options: {
+        preset: {
+          forename: true,
+        },
+        exclude: KAMI_COMPAT,
+      },
+      errors: [
+        {
+          message: `「${KAMI_SVS}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 3,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `常用漢字表の括弧内の旧字体：
+學校`,
+      errors: [
+        {
+          message: `「學」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `名前に使えない旧字体：
+學`,
+      options: {
+        preset: {
+          forename: true,
+        },
+      },
+      errors: [
+        {
+          message: `「學」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+      ],
+    },
     {
       text: `エラー漢字：
 
@@ -210,6 +389,153 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       ],
     },
     {
+      text: `同じ漢字を繰り返す許可パターンのエラー：
+呶呶呶`,
+      options: {
+        allowPatterns: ["呶呶"],
+      },
+      errors: [
+        {
+          message: `「呶」は "呶呶" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 3,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `後読みの許可パターンのエラー：
+呶呶`,
+      options: {
+        allowPatterns: ["/(?<=呶)呶/"],
+      },
+      errors: [
+        {
+          message: `「呶」は "/(?<=呶)呶/" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `元の字を除外すると異体字もエラー：
+${KATSU_0}飾区`,
+      options: {
+        exclude: "葛",
+      },
+      errors: [
+        {
+          message: `「${KATSU_0}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `異体字だけを許可した場合の元の字と別の異体字のエラー：
+葛飾区と${KATSU_1}飾区`,
+      options: {
+        exclude: "葛",
+        allowKanji: KATSU_0,
+      },
+      errors: [
+        {
+          message: `「葛」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 2,
+            },
+          },
+        },
+        {
+          message: `「${KATSU_1}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 5,
+            },
+            end: {
+              line: 2,
+              column: 8,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `特定の異体字だけを除外した場合のエラー：
+${KATSU_1}飾区`,
+      options: {
+        exclude: KATSU_1,
+      },
+      errors: [
+        {
+          message: `「${KATSU_1}」は許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
+      text: `異体字の許可パターンのエラー：
+${KATSU_0}城`,
+      options: {
+        exclude: "葛",
+        allowPatterns: [`${KATSU_0}飾`],
+      },
+      errors: [
+        {
+          message: `「${KATSU_0}」は "${KATSU_0}飾" 以外のパターンでは許可されていない漢字です。`,
+          loc: {
+            start: {
+              line: 2,
+              column: 1,
+            },
+            end: {
+              line: 2,
+              column: 4,
+            },
+          },
+        },
+      ],
+    },
+    {
       text: `サロゲートペアを含む許可パターンのエラー：
 𩸽の干物、縞𩸽、縞々焼𩸽`,
       options: {
@@ -267,10 +593,7 @@ tester.run("[textlint rule] textlint-rule-ja-allowed-kanji", rule, {
       options: {
         exclude: "濫",
         allowKanji: "諜",
-        allowPatterns: [
-          "氾濫",
-          "/炒(?=め)/"
-        ]
+        allowPatterns: ["氾濫", "/炒(?=め)/"],
       },
       errors: [
         {

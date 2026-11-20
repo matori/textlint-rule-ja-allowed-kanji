@@ -8,6 +8,7 @@ Refs：
 - [文化庁 | 国語施策・日本語教育 | 国語施策情報 | 内閣告示・内閣訓令 | 常用漢字表（平成22年内閣告示第2号）](https://www.bunka.go.jp/kokugo_nihongo/sisaku/joho/joho/kijun/naikaku/kanji/)
 - [法務省：子の名に使える漢字](https://www.moj.go.jp/MINJI/minji86.html)
 - [日本産業標準調査会：データベース-JIS規格詳細画面 JIS X0213](https://www.jisc.go.jp/app/jis/general/GnrJISNumberNameSearchList?toGnrJISStandardDetailList)
+- [UAX #38: Unicode Han Database (Unihan)](https://www.unicode.org/reports/tr38/)
 
 漢字として判定される文字については以下のリンクを参照してください。
 
@@ -17,7 +18,7 @@ Refs：
 
 Install with [npm](https://www.npmjs.com/):
 
-Required: Node.js >= 16.0
+Required: Node.js >= 22
 
 ```sh
 npm install textlint-rule-ja-allowed-kanji
@@ -49,15 +50,19 @@ textlint --rule ja-allowed-kanji README.md
      * どの漢字セットを使用するかのオプションです。
      * オプションが指定されていない場合は常用漢字のみになります。
      *
-     * 人名用漢字は常用漢字を含むので、
+     * 子の名には常用漢字も使えるので、`forename`を`true`にすると常用漢字も許可されます。
      * 常用漢字と人名用漢字を許可する場合は`forename`を`true`にするだけでOKです。
      *
      * すべて`false`にすると「々」「〇」のみ許可されるプリセットが作成されます。
      *
+     * キーの大文字・小文字は区別しません（`Regular`や`JIS1`も有効です）。
+     * 以下のキー以外を指定するとエラーになります。
+     * 各漢字セットの範囲は「漢字セットの範囲」を参照してください。
+     *
      * - regular: 常用漢字
-     * - forename: 人名用漢字
-     * - jis1: JIS第1水準（JIS X0213）
-     * - jis2: JIS第2水準（JIS X0213）
+     * - forename: 人名用漢字（常用漢字を含む）
+     * - jis1: JIS第1水準
+     * - jis2: JIS第2水準
      */
     preset? : {
         regular? : boolean;
@@ -92,6 +97,19 @@ textlint --rule ja-allowed-kanji README.md
 }
 ```
 
+### 漢字セットの範囲
+
+漢字セットのデータは、[Unicode の Unihan データベース](https://www.unicode.org/reports/tr38/)（Unicode 18.0.0）から生成しています。
+
+| プリセット | 範囲 | Unihan のフィールド |
+|---|---|---|
+| `regular` | 常用漢字表の本表の2,136字と、許容字体4字（「剥」「填」「頬」「叱」）。表の括弧内に添えられた旧字体（「學」など）は含みません | `kJoyoKanji` |
+| `forename` | 戸籍法施行規則 別表第二の人名用漢字。常用漢字も許可されます | `kJinmeiyoKanji` |
+| `jis1` | JIS X 0208 の第1水準 | `kJis0`（16〜47区） |
+| `jis2` | JIS X 0208 の第2水準 | `kJis0`（48〜84区） |
+
+旧字体を使いたい場合は、`forename`や`jis2`のプリセットを使うか、`allowKanji`オプションで許可してください。
+
 ### ※ 踊り字、漢数字のゼロ、二の字点、同上記号
 
 
@@ -101,7 +119,28 @@ textlint --rule ja-allowed-kanji README.md
 二の字点「〻」と同上記号「仝」はプリセットに含まれません。  
 必要に応じて`allowKanji`オプションで許可してください。
 
-### 許可する漢字を完全にコントールしたい場合
+### ※ 異体字セレクタ付きの漢字
+
+漢字は書記素（見た目の1文字）単位で扱います。  
+「葛󠄀」（葛 + U+E0100）のように異体字セレクタが付いた漢字は、セレクタを含めて1文字として扱い、次のように判定します。
+
+- 元の字「葛」がプリセットや`allowKanji`で許可されていれば、その異体字「葛󠄀」なども許可されます。
+- 異体字「葛󠄀」だけを`allowKanji`で許可した場合、元の字「葛」は許可されません。
+- `exclude`で元の字「葛」を除外すると、その異体字もすべて除外されます。異体字「葛󠄀」を指定すると、その異体字だけが除外されます。
+- `allowPatterns`は本文の文字列と、異体字セレクタも含めてそのまま照合します。
+
+「辺・邊・邉」のように別の文字コードが割り当てられた異体字は、それぞれ別の字として扱います。
+
+### ※ CJK 互換漢字
+
+「神」（U+FA19）のような CJK 互換漢字は、元の字（「神」U+795E）とは別の字として扱います。
+互換漢字の多くは旧字体の字形で、人名用漢字（`forename`）に含まれているものがあります。
+
+- 互換漢字と、それと同じ字形を表す標準化された異体字シーケンス（SVS。「神」+ U+FE00 など）は、同じ字として扱います。`allowKanji`や`exclude`でどちらを指定しても、両方に効きます。
+- 互換漢字と SVS は、元の字に戻して判定しません。たとえば常用漢字のプリセットでは、「神」（U+FA19）も「神」+ U+FE00 もエラーになります。
+- 互換漢字は、エディタなどで Unicode の正規化（NFC）がかかると元の字に置き換わります。このルールは本文を正規化せず、書かれている文字のまま判定します。
+
+### 許可する漢字を完全にコントロールしたい場合
 
 - プリセットオプション内をすべて`false`にする
 - `exclude`オプションで`"々〇"`を指定する
@@ -151,6 +190,15 @@ Builds source codes for publish to the `lib` folder.
 
 ```sh
 npm run build
+```
+
+## Generate kanji data
+
+Generates `src/data/` from the Unicode Character Database (Unihan and StandardizedVariants.txt).
+The Unicode version is fixed in `scripts/generate-kanji-data.ts`.
+
+```sh
+npm run generate:data
 ```
 
 ## Tests

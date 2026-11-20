@@ -64,4 +64,12 @@ describe("convertTextToKanjiArray", () => {
     const result = convertTextToKanjiArray(text);
     assert.deepStrictEqual(result, expected);
   });
+
+  it("異体字セレクタ付きの漢字を、元の字とは別の1文字として扱うこと", () => {
+    const text = "葛\u{E0100}葛葛\u{E0101}";
+
+    const expected = ["葛\u{E0100}", "葛", "葛\u{E0101}"] as KanjiList;
+    const result = convertTextToKanjiArray(text);
+    assert.deepStrictEqual(result, expected);
+  });
 });
